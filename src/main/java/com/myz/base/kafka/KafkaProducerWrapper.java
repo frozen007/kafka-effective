@@ -1,4 +1,4 @@
-package com.asiainno.base.kafka;
+package com.myz.base.kafka;
 
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;

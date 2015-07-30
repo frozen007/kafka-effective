@@ -1,4 +1,4 @@
-package com.asiainno.base.kafka;
+package com.myz.base.kafka;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -1,5 +1,6 @@
 package com.asiainno.base.kafka;
 
+import com.myz.base.kafka.KafkaBatchConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,4 +1,4 @@
-package com.asiainno.base.kafka;
+package com.myz.base.kafka;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
