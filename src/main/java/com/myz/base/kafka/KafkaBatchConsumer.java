@@ -32,6 +32,7 @@ public class KafkaBatchConsumer implements Runnable {
     private String groupId; //mandatory
     private String consumerId; //optional
     private boolean autoCommit = true; //optional
+    private boolean failOverStart = false; //启动时报错是否忽略，optional
 
     private String consumerDesc;
 
@@ -88,7 +89,8 @@ public class KafkaBatchConsumer implements Runnable {
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug("{}->Waited: {} Messages: {}", consumerDesc, System.currentTimeMillis() - batchStartTime, messageList.size());
+                    log.debug("{}->Waited: {} Messages: {}", consumerDesc, System.currentTimeMillis() - batchStartTime,
+                              messageList.size());
                 }
             }
 
@@ -120,43 +122,48 @@ public class KafkaBatchConsumer implements Runnable {
     }
 
     public synchronized void start() {
-        Properties props = new Properties();
-        props.setProperty("zookeeper.connect", zkConnect);
-        props.setProperty("auto.commit.enable", String.valueOf(autoCommit));
-        props.setProperty("consumer.timeout.ms", String.valueOf(consumerTimeout));
-        props.setProperty("group.id", groupId);
-        if (consumerId != null) {
-            consumerId = genUniqueConsumerID(consumerId);
-        }
-        props.setProperty("consumer.id", consumerId);
-
-        consumerDesc = groupId + "@" + topic;
-
-        ConsumerConfig consumerConfig = new ConsumerConfig(props);
-        consumer = Consumer.createJavaConsumerConnector(consumerConfig);
-
-        Map<String, Integer> topicCountMap = new HashMap<>();
-        // We always have just one topic being read by one thread
-        topicCountMap.put(topic, 1);
-
-        // Get the message iterator for our topic
-        // Note that this succeeds even if the topic doesn't exist
-        // in that case we simply get no messages for the topic
-        // Also note that currently we only support a single topic
         try {
-            Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
+            Properties props = new Properties();
+            props.setProperty("zookeeper.connect", zkConnect);
+            props.setProperty("auto.commit.enable", String.valueOf(autoCommit));
+            props.setProperty("consumer.timeout.ms", String.valueOf(consumerTimeout));
+            props.setProperty("group.id", groupId);
+            if (consumerId != null) {
+                consumerId = genUniqueConsumerID(consumerId);
+            }
+            props.setProperty("consumer.id", consumerId);
+
+            consumerDesc = groupId + "@" + topic;
+
+            ConsumerConfig consumerConfig = new ConsumerConfig(props);
+            consumer = Consumer.createJavaConsumerConnector(consumerConfig);
+
+            Map<String, Integer> topicCountMap = new HashMap<>();
+            // We always have just one topic being read by one thread
+            topicCountMap.put(topic, 1);
+
+            // Get the message iterator for our topic
+            // Note that this succeeds even if the topic doesn't exist
+            // in that case we simply get no messages for the topic
+            // Also note that currently we only support a single topic
+            Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(
+                    topicCountMap);
             List<KafkaStream<byte[], byte[]>> topicList = consumerMap.get(topic);
             KafkaStream<byte[], byte[]> stream = topicList.get(0);
             it = stream.iterator();
-        } catch (Exception e) {
-            throw e;
+
+            Thread t1 = new Thread(this);
+            t1.setName(messageConsumer.getClass().getSimpleName() + "-main");
+            t1.start();
+
+            log.info("KafkaBatchConsumer started consumer:{}", consumerDesc);
+        } catch (Throwable e) {
+            if (!failOverStart) {
+                throw e;
+            } else {
+                log.error("error when start consumer " + consumerDesc, e);
+            }
         }
-
-        Thread t1 = new Thread(this);
-        t1.setName(messageConsumer.getClass().getSimpleName() + "-main");
-        t1.start();
-
-        log.info("KafkaBatchConsumer started consumer:{}", consumerDesc);
     }
 
     public synchronized void stop() {
