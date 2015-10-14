@@ -240,6 +240,10 @@ public class KafkaBatchConsumer implements Runnable {
         this.messageConsumer = messageConsumer;
     }
 
+    public void setFailOverStart(boolean failOverStart) {
+        this.failOverStart = failOverStart;
+    }
+
     @Override
     public void run() {
         while (running) {
